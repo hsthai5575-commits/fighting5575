@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>오늘의 응원 한마디</title>
+  <style>
+    :root {
+      --bg: #fff8ef;
+      --card: #ffffff;
+      --text: #2b2118;
+      --muted: #7a6a5c;
+      --accent: #ff7a45;
+      --accent-dark: #e8622e;
+      --border: #f0dcc8;
+      --error-bg: #fdecec;
+      --error-text: #b42318;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1d1915;
+        --card: #2a241e;
+        --text: #f6eee6;
+        --muted: #bfae9e;
+        --border: #43392f;
+        --error-bg: #3a1f1c;
+        --error-text: #ffb4a8;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      font-size: 20px;
+      line-height: 1.6;
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    main {
+      width: 100%;
+      max-width: 520px;
+    }
+    h1 {
+      font-size: 2rem;
+      line-height: 1.3;
+      margin: 16px 0 8px;
+      text-align: center;
+    }
+    .sub {
+      text-align: center;
+      color: var(--muted);
+      margin: 0 0 28px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px 20px;
+    }
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .hint {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    input {
+      width: 100%;
+      font-size: 1.25rem;
+      padding: 16px;
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    button {
+      width: 100%;
+      margin-top: 16px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      padding: 18px;
+      min-height: 64px;
+      border: none;
+      border-radius: 14px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-dark); }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    #result {
+      margin-top: 24px;
+      min-height: 120px;
+      padding: 24px 20px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1.5;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+    #result.idle, #result.loading { color: var(--muted); font-size: 1.15rem; font-weight: 400; }
+    #result.error {
+      background: var(--error-bg);
+      color: var(--error-text);
+      border: 1px solid var(--error-text);
+      font-size: 1.1rem;
+      font-weight: 400;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>오늘의 응원 한마디</h1>
+    <p class="sub">닉네임을 적고 버튼을 눌러 보세요.</p>
+
+    <form class="card" id="form">
+      <label for="name">
+        공개용 닉네임
+        <span class="hint">비워 두면 "여러분"으로 불러 드려요.</span>
+      </label>
+      <input id="name" name="name" type="text" maxlength="20" autocomplete="off" placeholder="예: 별빛">
+      <button id="btn" type="submit">응원 받기</button>
+    </form>
+
+    <div id="result" class="idle" role="status" aria-live="polite">여기에 응원 한마디가 나타나요.</div>
+  </main>
+
+  <script>
+    const form = document.getElementById("form");
+    const input = document.getElementById("name");
+    const btn = document.getElementById("btn");
+    const result = document.getElementById("result");
+
+    function show(text, state) {
+      result.textContent = text;
+      result.className = state;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = input.value.trim();
+
+      btn.disabled = true;
+      btn.textContent = "불러오는 중…";
+      show("응원 한마디를 가져오는 중이에요…", "loading");
+
+      try {
+        // 상대 경로: Vercel에서는 api/message.js 서버 함수가 응답합니다.
+        const res = await fetch("api/message?name=" + encodeURIComponent(name), { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (!data || typeof data.message !== "string") throw new Error("응답 형식 오류");
+        show(data.message, "done");
+      } catch (err) {
+        // 실패 시 화면에서 문장을 대신 만들지 않고 안내만 보여 줍니다.
+        show("응원 한마디를 불러오지 못했어요. 서버에 연결할 수 없거나 응답에 문제가 있어요. 잠시 후 다시 시도해 주세요.", "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "응원 받기";
+      }
+    });
+  </script>
+</body>
+</html>
